@@ -1,11 +1,16 @@
 // // https://blog.janestreet.com/howto-static-access-control-using-phantom-types/
 // // We’ll start by implementing an int ref module on top of OCaml’s built-in ref.
-module Ref: {type t; let create: int => t; let set: (t, int) => unit; let get: t => int;} = {
-  type t = ref(int);
-  let create = (x) => ref(x);
-  let set = (t, x) => t := x;
-  let get = (t) => t^;
-};
+module Ref: {
+  type t
+  let create: int => t
+  let set: (t, int) => unit
+  let get: t => int
+} = {
+  type t = ref<int>
+  let create = x => ref(x)
+  let set = (t, x) => t := x
+  let get = t => t.contents
+}
 
 // // The simplest way of getting a read-only handle is to create another module with a different, more constrained signature.
 
@@ -34,57 +39,55 @@ module Ref: {type t; let create: int => t; let set: (t, int) => unit; let get: t
 // //  in is by constraining the appearance of the phantom types using a signature.
 
 // // It’s easier to understand once you look at an example.
-type readonly;
+type readonly
 
-type readwrite;
+type readwrite
 
-type immutable;
+type immutable
 
 module IRef: {
-  type t('a);
-  let create_immutable: int => t(immutable);
-  let create_readwrite: int => t(readwrite);
-  let readonly: t('a) => t(readonly);
-  let set: (t(readwrite), int) => unit;
-  let get: t('a) => int;
+  type t<'a>
+  let create_immutable: int => t<immutable>
+  let create_readwrite: int => t<readwrite>
+  let readonly: t<'a> => t<readonly>
+  let set: (t<readwrite>, int) => unit
+  let get: t<'a> => int
 } = {
-  type t('a) = Ref.t;
-  let create_immutable = Ref.create;
-  let create_readwrite = Ref.create;
-  let readonly = (x) => x;
-  let set = Ref.set;
-  let get = Ref.get;
-};
+  type t<'a> = Ref.t
+  let create_immutable = Ref.create
+  let create_readwrite = Ref.create
+  let readonly = x => x
+  let set = Ref.set
+  let get = Ref.get
+}
 
+let sumrefs = reflist => List.fold_left(\"+", 0, List.map(IRef.get, reflist))
 
-let sumrefs = (reflist) => List.fold_left((+), 0, List.map(IRef.get, reflist));
-
-let increfs = (reflist) => List.iter((r) => IRef.set(r, IRef.get(r) + 1), reflist);
+let increfs = reflist => List.iter(r => IRef.set(r, IRef.get(r) + 1), reflist)
 
 module IRefP: {
-  type t('a);
-  let create: int => t('a);
-  let set: (t(readwrite), int) => unit;
-  let get: t('a) => int;
-  let readonly: t('a) => t(readonly);
+  type t<'a>
+  let create: int => t<'a>
+  let set: (t<readwrite>, int) => unit
+  let get: t<'a> => int
+  let readonly: t<'a> => t<readonly>
 } = {
-  type t('a) = Ref.t;
-  let create = Ref.create;
+  type t<'a> = Ref.t
+  let create = Ref.create
   // let create_readwrite = Ref.create;
-  let readonly = (x) => x;
-  let set = Ref.set;
-  let get = Ref.get;
-};
+  let readonly = x => x
+  let set = Ref.set
+  let get = Ref.get
+}
 
-
-let r = IRefP.create(3);
+let r = IRefP.create(3)
 Js.log(r)
-let r = IRefP.readonly(r);
-Js.log2("readonly",r)
+let r = IRefP.readonly(r)
+Js.log2("readonly", r)
 // r created as readonly so get error
 // let r = IRefP.set(r);
 // Js.log2("readonly",r)
 
-let r: IRefP.t(immutable) = IRefP.create(3);
+let r: IRefP.t<immutable> = IRefP.create(3)
 Js.log(r)
 Js.log(IRefP.get(r))
